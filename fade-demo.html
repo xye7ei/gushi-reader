@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>唐詩淡入效果比較測試</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+
+      --bg: #faf8f4;
+      --bg-bar: #f3efe8;
+      --bg-btn: #ffffff;
+      --bg-hover: #eae4d9;
+      --text: #23201d;
+      --text-muted: #6c645a;
+      --text-faint: #8f867b;
+      --border: #e3dcd0;
+      --accent: #8c3b2b;
+
+      --font-serif: "Songti TC", "Source Han Serif TC", "Noto Serif TC", "STSong", "PMingLiU", "PingFang TC", Georgia, serif;
+      --font-ui: "PingFang TC", "Noto Sans TC", "Hiragino Sans CNS", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #151412;
+        --bg-bar: #1c1a17;
+        --bg-btn: #23201c;
+        --bg-hover: #2d2924;
+        --text: #e6e0d6;
+        --text-muted: #9e9589;
+        --text-faint: #756e64;
+        --border: #2e2a24;
+        --accent: #d8866c;
+      }
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-serif);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.9rem 1.25rem;
+      background: var(--bg-bar);
+      border-block-end: 1px solid var(--border);
+      font-family: var(--font-ui);
+    }
+
+    .toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .controls-row {
+      gap: 0.75rem 1.4rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .control-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .control-item input[type="range"] {
+      width: 9rem;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .control-val {
+      min-width: 3.6rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      text-align: end;
+    }
+
+    .control-total {
+      font-variant-numeric: tabular-nums;
+      color: var(--text-faint);
+    }
+
+    .btn {
+      padding: 0.45rem 0.9rem;
+      font: inherit;
+      font-size: 0.875rem;
+      color: var(--text);
+      background: var(--bg-btn);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .btn[aria-pressed="true"] {
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .btn-replay {
+      margin-inline-start: 0.4rem;
+      background: transparent;
+      color: var(--text-muted);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .stage {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2.5rem 1.5rem 3.5rem;
+    }
+
+    .poem {
+      width: 100%;
+      max-width: 44rem;
+      text-align: center;
+    }
+
+    .poem-header {
+      margin-block-end: 1.5rem;
+    }
+
+    .poem-title {
+      margin: 0;
+      font-size: 1.48rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      line-height: 1.5;
+    }
+
+    .poem-author {
+      margin: 0.45rem 0 0;
+      font-size: 0.96rem;
+      color: var(--text-muted);
+      letter-spacing: 0.16em;
+      text-indent: 0.16em;
+    }
+
+    .poem-body {
+      font-size: 1.24rem;
+      line-height: 2.25;
+      letter-spacing: 0.08em;
+    }
+
+    .control-item[hidden] {
+      display: none;
+    }
+
+    .verse {
+      position: relative;
+      width: min(100%, 24em);
+      margin: 0 auto;
+      padding: 0.12em 0 0.12em 0.45em;
+      text-align: center;
+      hanging-punctuation: allow-end;
+      border-radius: 6px;
+      cursor: default;
+    }
+
+    .clause {
+      display: inline-block;
+      max-width: 100%;
+    }
+
+    .meta-note {
+      margin-block-start: 3rem;
+      max-width: 34rem;
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      line-height: 1.7;
+      color: var(--text-faint);
+      text-align: center;
+    }
+
+    /* ── 方案一：整行淡入（懸停該行觸發） ── */
+    @keyframes lineFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .poem-header {
+      animation: lineFadeIn 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .mode-line .verse:not(.is-revealed) .clause {
+      opacity: 0;
+    }
+
+    .mode-line .verse.is-revealed .clause {
+      animation: lineFadeIn var(--dur, 700ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    /* ── 方案二：漸層遮罩掃描（懸停該行觸發，行內上下句依序掃描） ── */
+    @keyframes maskWipe {
+      from {
+        -webkit-mask-position: 100% 0;
+        mask-position: 100% 0;
+      }
+      to {
+        -webkit-mask-position: 0% 0;
+        mask-position: 0% 0;
+      }
+    }
+
+    .mode-mask .verse:not(.is-revealed) .clause {
+      opacity: 0;
+    }
+
+    .mode-mask .verse.is-revealed .clause {
+      -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 42%, transparent 58%, transparent 100%);
+      mask-image: linear-gradient(90deg, #000 0%, #000 42%, transparent 58%, transparent 100%);
+      -webkit-mask-size: 260% 100%;
+      mask-size: 260% 100%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      animation: maskWipe var(--dur, 850ms) ease-out both;
+      animation-delay: calc(var(--clause-i) * var(--stagger, 420ms));
+    }
+
+    /* ── 方案三：逐字淡入（懸停該行觸發，行內逐字顯現） ── */
+    @keyframes charFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .mode-char .char {
+      display: inline-block;
+    }
+
+    .mode-char .verse:not(.is-revealed) .char {
+      opacity: 0;
+    }
+
+    .mode-char .verse.is-revealed .char {
+      animation: charFadeIn var(--dur, 420ms) ease-out both;
+      animation-delay: calc(var(--char-i) * var(--stagger, 65ms));
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar" role="toolbar" aria-label="淡入效果切換">
+    <div class="toolbar-row">
+      <button type="button" class="btn" data-mode="line" aria-pressed="true">方案一：整行淡入</button>
+      <button type="button" class="btn" data-mode="mask" aria-pressed="false">方案二：漸層遮罩掃描</button>
+      <button type="button" class="btn" data-mode="char" aria-pressed="false">方案三：逐字淡入</button>
+      <button type="button" class="btn btn-replay" id="replay-btn">重新隱藏</button>
+      <button type="button" class="btn btn-replay" id="reset-btn">重設參數</button>
+    </div>
+    <div class="toolbar-row controls-row">
+      <label class="control-item">
+        <span id="dur-label">單行時長</span>
+        <input type="range" id="dur-range" min="200" max="2000" step="50" value="700">
+        <output class="control-val" id="dur-val" for="dur-range">700 ms</output>
+      </label>
+      <label class="control-item" id="stagger-control" hidden>
+        <span id="stagger-label">句間延遲</span>
+        <input type="range" id="stagger-range" min="40" max="1200" step="20" value="420">
+        <output class="control-val" id="stagger-val" for="stagger-range">420 ms</output>
+      </label>
+      <span class="control-total" id="total-val">單行約 0.70 s</span>
+    </div>
+  </div>
+
+  <main class="stage">
+    <article class="poem mode-line" id="poem">
+      <header class="poem-header">
+        <h1 class="poem-title">山居秋暝</h1>
+        <p class="poem-author">王維</p>
+      </header>
+      <div class="poem-body">
+        <p class="verse"><span class="clause" style="--clause-i: 0">空山新雨後，</span><span class="clause" style="--clause-i: 1">天氣晚來秋。</span></p>
+        <p class="verse"><span class="clause" style="--clause-i: 0">明月松間照，</span><span class="clause" style="--clause-i: 1">清泉石上流。</span></p>
+        <p class="verse"><span class="clause" style="--clause-i: 0">竹喧歸浣女，</span><span class="clause" style="--clause-i: 1">蓮動下漁舟。</span></p>
+        <p class="verse"><span class="clause" style="--clause-i: 0">隨意春芳歇，</span><span class="clause" style="--clause-i: 1">王孫自可留。</span></p>
+      </div>
+    </article>
+
+    <p class="meta-note" id="mode-desc"></p>
+  </main>
+
+  <script>
+    (function () {
+      var poem = document.getElementById("poem");
+      var desc = document.getElementById("mode-desc");
+      var replayBtn = document.getElementById("replay-btn");
+      var resetBtn = document.getElementById("reset-btn");
+      var durLabel = document.getElementById("dur-label");
+      var durRange = document.getElementById("dur-range");
+      var durVal = document.getElementById("dur-val");
+      var staggerControl = document.getElementById("stagger-control");
+      var staggerLabel = document.getElementById("stagger-label");
+      var staggerRange = document.getElementById("stagger-range");
+      var staggerVal = document.getElementById("stagger-val");
+      var totalVal = document.getElementById("total-val");
+      var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-mode]"));
+      var verses = Array.prototype.slice.call(poem.querySelectorAll(".verse"));
+      var clauses = Array.prototype.slice.call(poem.querySelectorAll(".clause"));
+      var originalTexts = clauses.map(function (el) { return el.textContent; });
+      var currentMode = "line";
+
+      var CONFIG = {
+        line: {
+          name: "方案一（整行淡入）",
+          durLabel: "單行時長",
+          durMin: 200, durMax: 2000, durStep: 50, durDefault: 700,
+          hasStagger: false,
+          steps: 1,
+          note: "單擊詩行區域即淡入該行，零額外 DOM 節點。"
+        },
+        mask: {
+          name: "方案二（漸層遮罩掃描）",
+          durLabel: "單句掃描",
+          durMin: 200, durMax: 2400, durStep: 50, durDefault: 850,
+          hasStagger: true,
+          staggerLabel: "上下句延遲",
+          staggerMin: 40, staggerMax: 1200, staggerStep: 20, staggerDefault: 420,
+          steps: 2,
+          note: "單擊詩行區域時，該行上下句依序由左向右掃描顯現，零拆字開銷。"
+        },
+        char: {
+          name: "方案三（逐字淡入）",
+          durLabel: "單字時長",
+          durMin: 100, durMax: 1200, durStep: 20, durDefault: 420,
+          hasStagger: true,
+          staggerLabel: "字間延遲",
+          staggerMin: 15, staggerMax: 250, staggerStep: 5, staggerDefault: 65,
+          steps: 10,
+          note: "單擊詩行區域時，該行內 10 字（含標點）逐字淡入。"
+        }
+      };
+
+      var state = {
+        line: { dur: CONFIG.line.durDefault, stagger: 0 },
+        mask: { dur: CONFIG.mask.durDefault, stagger: CONFIG.mask.staggerDefault },
+        char: { dur: CONFIG.char.durDefault, stagger: CONFIG.char.staggerDefault }
+      };
+
+      function syncControls(mode) {
+        var cfg = CONFIG[mode];
+        var st = state[mode];
+        durLabel.textContent = cfg.durLabel;
+        durRange.min = String(cfg.durMin);
+        durRange.max = String(cfg.durMax);
+        durRange.step = String(cfg.durStep);
+        durRange.value = String(st.dur);
+
+        staggerControl.hidden = !cfg.hasStagger;
+        if (cfg.hasStagger) {
+          staggerLabel.textContent = cfg.staggerLabel;
+          staggerRange.min = String(cfg.staggerMin);
+          staggerRange.max = String(cfg.staggerMax);
+          staggerRange.step = String(cfg.staggerStep);
+          staggerRange.value = String(st.stagger);
+        }
+
+        updateReadout();
+      }
+
+      function updateReadout() {
+        var cfg = CONFIG[currentMode];
+        var st = state[currentMode];
+        var lineTotalMs = (cfg.steps - 1) * (cfg.hasStagger ? st.stagger : 0) + st.dur;
+        durVal.textContent = st.dur + " ms";
+        if (cfg.hasStagger) {
+          staggerVal.textContent = st.stagger + " ms";
+        }
+        totalVal.textContent = "單行約 " + (lineTotalMs / 1000).toFixed(2) + " s";
+        var paramText = cfg.hasStagger
+          ? cfg.durLabel + " " + st.dur + "ms、" + cfg.staggerLabel + " " + st.stagger + "ms"
+          : cfg.durLabel + " " + st.dur + "ms";
+        desc.textContent =
+          cfg.name + "｜" + paramText + "（單行約 " + (lineTotalMs / 1000).toFixed(2) + "s）。" +
+          "請以滑鼠單擊（或觸屏點按）詩歌區域逐行觸發淡入。" + cfg.note;
+      }
+
+      function applyTimingVars() {
+        var st = state[currentMode];
+        poem.style.setProperty("--dur", st.dur + "ms");
+        poem.style.setProperty("--stagger", st.stagger + "ms");
+      }
+
+      function restorePlainText() {
+        for (var i = 0; i < clauses.length; i++) {
+          clauses[i].textContent = originalTexts[i];
+        }
+      }
+
+      function splitToChars() {
+        var punct = /^[，。？！；：、]$/;
+        var clauseIdx = 0;
+        for (var v = 0; v < verses.length; v++) {
+          var step = 0;
+          var vClauses = verses[v].querySelectorAll(".clause");
+          for (var c = 0; c < vClauses.length; c++) {
+            var text = originalTexts[clauseIdx++];
+            var frag = document.createDocumentFragment();
+            for (var j = 0; j < text.length; j++) {
+              var ch = text.charAt(j);
+              var span = document.createElement("span");
+              span.className = "char";
+              span.textContent = ch;
+              var delayIndex = punct.test(ch) && step > 0 ? step - 1 : step++;
+              span.style.setProperty("--char-i", String(delayIndex));
+              frag.appendChild(span);
+            }
+            vClauses[c].textContent = "";
+            vClauses[c].appendChild(frag);
+          }
+        }
+      }
+
+      function hideAllVerses() {
+        for (var i = 0; i < verses.length; i++) {
+          verses[i].classList.remove("is-revealed");
+        }
+      }
+
+      function applyMode(mode) {
+        currentMode = mode;
+
+        buttons.forEach(function (btn) {
+          btn.setAttribute("aria-pressed", String(btn.getAttribute("data-mode") === mode));
+        });
+
+        syncControls(mode);
+        applyTimingVars();
+        hideAllVerses();
+
+        poem.classList.remove("mode-line", "mode-mask", "mode-char");
+
+        if (mode === "char") {
+          splitToChars();
+        } else {
+          restorePlainText();
+        }
+
+        void poem.offsetWidth;
+        poem.classList.add("mode-" + mode);
+      }
+
+      poem.addEventListener("click", function (e) {
+        if (window.getSelection && window.getSelection().toString()) return;
+        var verse = e.target && e.target.closest ? e.target.closest(".verse") : null;
+        if (verse && !verse.classList.contains("is-revealed")) {
+          verse.classList.add("is-revealed");
+          return;
+        }
+        var next = poem.querySelector(".verse:not(.is-revealed)");
+        if (next) next.classList.add("is-revealed");
+      });
+
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          applyMode(btn.getAttribute("data-mode"));
+        });
+      });
+
+      durRange.addEventListener("input", function () {
+        state[currentMode].dur = Number(durRange.value);
+        applyTimingVars();
+        updateReadout();
+      });
+      durRange.addEventListener("change", function () {
+        applyMode(currentMode);
+      });
+
+      staggerRange.addEventListener("input", function () {
+        state[currentMode].stagger = Number(staggerRange.value);
+        applyTimingVars();
+        updateReadout();
+      });
+      staggerRange.addEventListener("change", function () {
+        applyMode(currentMode);
+      });
+
+      replayBtn.addEventListener("click", function () {
+        hideAllVerses();
+      });
+
+      resetBtn.addEventListener("click", function () {
+        var cfg = CONFIG[currentMode];
+        state[currentMode].dur = cfg.durDefault;
+        state[currentMode].stagger = cfg.hasStagger ? cfg.staggerDefault : 0;
+        applyMode(currentMode);
+      });
+
+      applyMode("line");
+    })();
+  </script>
+</body>
+</html>
