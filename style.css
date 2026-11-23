@@ -615,6 +615,10 @@ html.bg-breathe body::before {
   letter-spacing: 0.08em;
 }
 
+.poem-stanza + .poem-stanza {
+  margin-block-start: 1.05em;
+}
+
 .verse {
   position: relative;
   width: min(100%, 34em);

@@ -7,10 +7,13 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parent
-DATA_PATH = ROOT / "data" / "tangshi300.json"
 CSS_PATH = ROOT / "style.css"
 JS_PATH = ROOT / "search.js"
-OUT_PATH = ROOT / "index.html"
+
+BOOKS = [
+    (ROOT / "data" / "tangshi300.json", ROOT / "index.html"),
+    (ROOT / "data" / "shijing_guofeng.json", ROOT / "guofeng.html"),
+]
 
 
 def split_clauses(line: str) -> list[str]:
@@ -28,12 +31,24 @@ def render_verse(line: str) -> str:
     return f'          <p class="verse">{clauses}</p>'
 
 
-def build() -> None:
-    data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+def render_poem_body(poem: dict) -> str:
+    stanzas = poem.get("stanzas")
+    if stanzas and len(stanzas) > 1:
+        blocks = []
+        for stanza in stanzas:
+            verses = "\n".join(render_verse(line) for line in stanza)
+            blocks.append(f'          <div class="poem-stanza">\n{verses}\n          </div>')
+        return "\n".join(blocks)
+    return "\n".join(render_verse(line) for line in poem["lines"])
+
+
+def build_book(data_path: Path, out_path: Path) -> None:
+    data = json.loads(data_path.read_text(encoding="utf-8"))
     css = CSS_PATH.read_text(encoding="utf-8").strip().replace("</style>", "<\\/style>")
     js = JS_PATH.read_text(encoding="utf-8").strip().replace("</script>", "<\\/script>")
     sections = data["sections"]
     total = data["total"]
+    lang = escape(data.get("lang", "zh-Hant"))
 
     toc_html = []
     main_html = []
@@ -49,7 +64,8 @@ def build() -> None:
         for poem in sec["poems"]:
             pid = escape(poem["id"])
             title = escape(poem["title"])
-            author = escape(poem["author"])
+            author_raw = poem.get("author") or ""
+            author = escape(author_raw)
             alt = poem.get("alt_title")
             lines = poem["lines"]
             notes = poem.get("notes") or []
@@ -59,26 +75,32 @@ def build() -> None:
                 for part in (
                     poem["title"],
                     alt or "",
-                    poem["author"],
+                    author_raw,
                     sec["type"],
                     "".join(lines),
                 )
                 if part
             )
+            toc_author_html = (
+                ""
+                if not author_raw or author_raw.endswith(sec["type"])
+                else f'<span class="toc-author">{author}</span>'
+            )
             toc_items.append(
                 f'          <li data-q="{escape(search_blob, quote=True)}">'
                 f'<a href="#{pid}">'
                 f'<span class="toc-title">{title}</span>'
-                f'<span class="toc-author">{author}</span>'
+                f"{toc_author_html}"
                 f"</a></li>"
             )
 
             header_parts = [f'          <h3 class="poem-title">{title}</h3>']
             if alt:
                 header_parts.append(f'          <p class="poem-alt">又題：{escape(alt)}</p>')
-            header_parts.append(f'          <p class="poem-author">{author}</p>')
+            if author_raw:
+                header_parts.append(f'          <p class="poem-author">{author}</p>')
 
-            verses_html = "\n".join(render_verse(line) for line in lines)
+            verses_html = render_poem_body(poem)
             notes_html = ""
             if notes:
                 joined_notes = escape("；".join(notes))
@@ -113,7 +135,7 @@ def build() -> None:
         )
 
     html = f"""<!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="{lang}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -223,8 +245,14 @@ def build() -> None:
 </html>
 """
 
-    OUT_PATH.write_text(html, encoding="utf-8")
-    print(f"Generated {OUT_PATH.name} ({len(html):,} bytes, {total} poems).")
+    out_path.write_text(html, encoding="utf-8")
+    print(f"Generated {out_path.name} ({len(html):,} chars, {total} poems).")
+
+
+def build() -> None:
+    for data_path, out_path in BOOKS:
+        if data_path.exists():
+            build_book(data_path, out_path)
 
 
 if __name__ == "__main__":
