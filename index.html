@@ -10,6 +10,13 @@
   color-scheme: light dark;
 
   --bg: #faf8f4;
+  --breathe-period: 12s;
+  --breathe-light-dim: 6%;
+  --breathe-light-bright: 72%;
+  --breathe-dark-dim: 30%;
+  --breathe-dark-bright: 7.2%;
+  --bg-dim: color-mix(in srgb, var(--bg), #3a2e22 var(--breathe-light-dim));
+  --bg-bright: color-mix(in srgb, var(--bg), #fffdf7 var(--breathe-light-bright));
   --bg-sidebar: #f3efe8;
   --bg-hover: #eae4d9;
   --bg-input: #ffffff;
@@ -29,6 +36,8 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #151412;
+    --bg-dim: color-mix(in srgb, var(--bg), #050403 var(--breathe-dark-dim));
+    --bg-bright: color-mix(in srgb, var(--bg), #fff4e0 var(--breathe-dark-bright));
     --bg-sidebar: #1c1a17;
     --bg-hover: #272420;
     --bg-input: #141311;
@@ -46,16 +55,46 @@
   box-sizing: border-box;
 }
 
-html,
-body {
+html {
   margin: 0;
   padding: 0;
   height: 100%;
   background: var(--bg);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: transparent;
   color: var(--text);
   font-family: var(--font-serif);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+@keyframes bgBreathe {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+html.bg-breathe {
+  background: var(--bg-dim);
+}
+
+html.bg-breathe body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bg-bright);
+  will-change: opacity;
+  animation: bgBreathe calc(var(--breathe-period, 12s) / 2) cubic-bezier(0.37, 0, 0.63, 1) calc(var(--breathe-period, 12s) / -4) infinite alternate;
 }
 
 .sidebar-toggle {
@@ -374,6 +413,7 @@ body {
 
 .settings-panel summary:focus-visible,
 .setting-num:focus-visible,
+.setting-toggle:focus-visible,
 .setting-action:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
@@ -381,11 +421,23 @@ body {
 
 .settings-body {
   padding: 0.25rem 1.1rem 0.9rem;
+  max-height: 58dvh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.breathe-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.breathe-options[hidden] {
+  display: none;
 }
 
 .setting-field {
@@ -426,6 +478,35 @@ body {
   margin: 0;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+.setting-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.setting-toggle {
+  padding: 0.24rem 0.65rem;
+  font: inherit;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.setting-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.setting-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .settings-actions {
@@ -677,6 +758,14 @@ body {
 
 /* ── Print ── */
 @media print {
+  html.bg-breathe {
+    background: var(--bg);
+  }
+
+  html.bg-breathe body::before {
+    display: none;
+  }
+
   .layout {
     display: block;
     height: auto;
@@ -1116,6 +1205,32 @@ body {
                 </span>
               </div>
               <input id="scan-delay-range" class="setting-range" type="range" min="0" max="10000" step="50" value="1250">
+            </div>
+            <div class="setting-toggle-row">
+              <span>背景明暗呼吸</span>
+              <button type="button" class="setting-toggle" id="bg-breathe-toggle" aria-pressed="true">開啟</button>
+            </div>
+            <div class="breathe-options" id="breathe-options">
+              <div class="setting-field">
+                <div class="setting-head">
+                  <label for="breathe-period-range">呼吸週期</label>
+                  <span class="setting-input-wrap">
+                    <input id="breathe-period-num" class="setting-num" type="number" min="2" max="60" step="1" value="12" aria-label="呼吸週期秒數">
+                    <span>s</span>
+                  </span>
+                </div>
+                <input id="breathe-period-range" class="setting-range" type="range" min="2" max="60" step="1" value="12">
+              </div>
+              <div class="setting-field">
+                <div class="setting-head">
+                  <label for="breathe-range-range">明暗幅度</label>
+                  <span class="setting-input-wrap">
+                    <input id="breathe-range-num" class="setting-num" type="number" min="1" max="30" step="1" value="6" aria-label="明暗幅度百分比">
+                    <span>%</span>
+                  </span>
+                </div>
+                <input id="breathe-range-range" class="setting-range" type="range" min="1" max="30" step="1" value="6">
+              </div>
             </div>
             <div class="settings-actions">
               <button type="button" class="setting-action" id="reset-reveal">重新隱藏詩句</button>
@@ -5522,11 +5637,18 @@ body {
     }
   });
 
-  /* ── Hover Mask-Wipe Reveal & Settings ── */
+  /* ── Click Mask-Wipe Reveal & Settings ── */
   var DEFAULT_DUR = 2500;
   var DEFAULT_DELAY = 1250;
+  var DEFAULT_BREATHE = true;
+  var DEFAULT_PERIOD = 12;
+  var DEFAULT_RANGE = 6;
   var MIN_MS = 0;
   var MAX_MS = 10000;
+  var MIN_PERIOD = 2;
+  var MAX_PERIOD = 60;
+  var MIN_RANGE = 1;
+  var MAX_RANGE = 30;
   var STORAGE_KEY = "tangshi300_scan_settings";
 
   var root = document.documentElement;
@@ -5535,13 +5657,27 @@ body {
   var durNum = document.getElementById("scan-dur-num");
   var delayRange = document.getElementById("scan-delay-range");
   var delayNum = document.getElementById("scan-delay-num");
+  var breatheToggle = document.getElementById("bg-breathe-toggle");
+  var breatheOptions = document.getElementById("breathe-options");
+  var periodRange = document.getElementById("breathe-period-range");
+  var periodNum = document.getElementById("breathe-period-num");
+  var rangeRange = document.getElementById("breathe-range-range");
+  var rangeNum = document.getElementById("breathe-range-num");
   var resetRevealBtn = document.getElementById("reset-reveal");
   var resetSettingsBtn = document.getElementById("reset-settings");
 
-  function clampMs(val, fallback) {
+  var settings = {
+    dur: DEFAULT_DUR,
+    delay: DEFAULT_DELAY,
+    breathe: DEFAULT_BREATHE,
+    period: DEFAULT_PERIOD,
+    range: DEFAULT_RANGE,
+  };
+
+  function clampInt(val, min, max, fallback) {
     var n = Number(val);
     if (!isFinite(n)) return fallback;
-    return Math.min(MAX_MS, Math.max(MIN_MS, Math.round(n)));
+    return Math.min(max, Math.max(min, Math.round(n)));
   }
 
   function loadSettings() {
@@ -5549,30 +5685,69 @@ body {
       var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
       if (saved && typeof saved === "object") {
         return {
-          dur: clampMs(saved.dur, DEFAULT_DUR),
-          delay: clampMs(saved.delay, DEFAULT_DELAY),
+          dur: clampInt(saved.dur, MIN_MS, MAX_MS, DEFAULT_DUR),
+          delay: clampInt(saved.delay, MIN_MS, MAX_MS, DEFAULT_DELAY),
+          breathe: typeof saved.breathe === "boolean" ? saved.breathe : DEFAULT_BREATHE,
+          period: clampInt(saved.period, MIN_PERIOD, MAX_PERIOD, DEFAULT_PERIOD),
+          range: clampInt(saved.range, MIN_RANGE, MAX_RANGE, DEFAULT_RANGE),
         };
       }
     } catch (err) {}
-    return { dur: DEFAULT_DUR, delay: DEFAULT_DELAY };
+    return {
+      dur: DEFAULT_DUR,
+      delay: DEFAULT_DELAY,
+      breathe: DEFAULT_BREATHE,
+      period: DEFAULT_PERIOD,
+      range: DEFAULT_RANGE,
+    };
   }
 
-  function saveSettings(dur, delay) {
+  function saveSettings() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ dur: dur, delay: delay }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     } catch (err) {}
   }
 
-  function applySettings(dur, delay, persist) {
-    dur = clampMs(dur, DEFAULT_DUR);
-    delay = clampMs(delay, DEFAULT_DELAY);
-    root.style.setProperty("--scan-dur", dur + "ms");
-    root.style.setProperty("--scan-delay", delay + "ms");
-    if (durRange) durRange.value = String(dur);
-    if (durNum) durNum.value = String(dur);
-    if (delayRange) delayRange.value = String(delay);
-    if (delayNum) delayNum.value = String(delay);
-    if (persist) saveSettings(dur, delay);
+  function applySettings(next, persist) {
+    settings.dur = clampInt(next.dur, MIN_MS, MAX_MS, DEFAULT_DUR);
+    settings.delay = clampInt(next.delay, MIN_MS, MAX_MS, DEFAULT_DELAY);
+    settings.breathe = typeof next.breathe === "boolean" ? next.breathe : DEFAULT_BREATHE;
+    settings.period = clampInt(next.period, MIN_PERIOD, MAX_PERIOD, DEFAULT_PERIOD);
+    settings.range = clampInt(next.range, MIN_RANGE, MAX_RANGE, DEFAULT_RANGE);
+
+    root.style.setProperty("--scan-dur", settings.dur + "ms");
+    root.style.setProperty("--scan-delay", settings.delay + "ms");
+    root.style.setProperty("--breathe-period", settings.period + "s");
+    root.style.setProperty("--breathe-light-dim", settings.range + "%");
+    root.style.setProperty("--breathe-light-bright", Math.min(100, settings.range * 12) + "%");
+    root.style.setProperty("--breathe-dark-dim", Math.min(100, settings.range * 5) + "%");
+    root.style.setProperty("--breathe-dark-bright", (settings.range * 1.2).toFixed(1) + "%");
+    root.classList.toggle("bg-breathe", settings.breathe);
+
+    if (durRange) durRange.value = String(settings.dur);
+    if (durNum) durNum.value = String(settings.dur);
+    if (delayRange) delayRange.value = String(settings.delay);
+    if (delayNum) delayNum.value = String(settings.delay);
+    if (periodRange) periodRange.value = String(settings.period);
+    if (periodNum) periodNum.value = String(settings.period);
+    if (rangeRange) rangeRange.value = String(settings.range);
+    if (rangeNum) rangeNum.value = String(settings.range);
+    if (breatheToggle) {
+      breatheToggle.setAttribute("aria-pressed", String(settings.breathe));
+      breatheToggle.textContent = settings.breathe ? "開啟" : "關閉";
+    }
+    if (breatheOptions) breatheOptions.hidden = !settings.breathe;
+    if (persist) saveSettings();
+  }
+
+  function updateSetting(patch) {
+    applySettings({
+      dur: "dur" in patch ? patch.dur : settings.dur,
+      delay: "delay" in patch ? patch.delay : settings.delay,
+      breathe: "breathe" in patch ? patch.breathe : settings.breathe,
+      period: "period" in patch ? patch.period : settings.period,
+      range: "range" in patch ? patch.range : settings.range,
+    }, true);
   }
 
   if (reader) {
@@ -5597,25 +5772,32 @@ body {
     });
   }
 
-  var initial = loadSettings();
-  applySettings(initial.dur, initial.delay, false);
+  applySettings(loadSettings(), false);
 
   if (durRange && durNum) {
-    durRange.addEventListener("input", function () {
-      applySettings(durRange.value, delayRange ? delayRange.value : DEFAULT_DELAY, true);
-    });
-    durNum.addEventListener("change", function () {
-      applySettings(durNum.value, delayNum ? delayNum.value : DEFAULT_DELAY, true);
-    });
+    durRange.addEventListener("input", function () { updateSetting({ dur: durRange.value }); });
+    durNum.addEventListener("change", function () { updateSetting({ dur: durNum.value }); });
   }
 
   if (delayRange && delayNum) {
-    delayRange.addEventListener("input", function () {
-      applySettings(durRange ? durRange.value : DEFAULT_DUR, delayRange.value, true);
+    delayRange.addEventListener("input", function () { updateSetting({ delay: delayRange.value }); });
+    delayNum.addEventListener("change", function () { updateSetting({ delay: delayNum.value }); });
+  }
+
+  if (breatheToggle) {
+    breatheToggle.addEventListener("click", function () {
+      updateSetting({ breathe: !settings.breathe });
     });
-    delayNum.addEventListener("change", function () {
-      applySettings(durNum ? durNum.value : DEFAULT_DUR, delayNum.value, true);
-    });
+  }
+
+  if (periodRange && periodNum) {
+    periodRange.addEventListener("input", function () { updateSetting({ period: periodRange.value }); });
+    periodNum.addEventListener("change", function () { updateSetting({ period: periodNum.value }); });
+  }
+
+  if (rangeRange && rangeNum) {
+    rangeRange.addEventListener("input", function () { updateSetting({ range: rangeRange.value }); });
+    rangeNum.addEventListener("change", function () { updateSetting({ range: rangeNum.value }); });
   }
 
   if (resetRevealBtn && reader) {
@@ -5629,7 +5811,13 @@ body {
 
   if (resetSettingsBtn) {
     resetSettingsBtn.addEventListener("click", function () {
-      applySettings(DEFAULT_DUR, DEFAULT_DELAY, true);
+      applySettings({
+        dur: DEFAULT_DUR,
+        delay: DEFAULT_DELAY,
+        breathe: DEFAULT_BREATHE,
+        period: DEFAULT_PERIOD,
+        range: DEFAULT_RANGE,
+      }, true);
     });
   }
 

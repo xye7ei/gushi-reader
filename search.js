@@ -69,11 +69,18 @@
     }
   });
 
-  /* ── Hover Mask-Wipe Reveal & Settings ── */
+  /* ── Click Mask-Wipe Reveal & Settings ── */
   var DEFAULT_DUR = 2500;
   var DEFAULT_DELAY = 1250;
+  var DEFAULT_BREATHE = true;
+  var DEFAULT_PERIOD = 12;
+  var DEFAULT_RANGE = 6;
   var MIN_MS = 0;
   var MAX_MS = 10000;
+  var MIN_PERIOD = 2;
+  var MAX_PERIOD = 60;
+  var MIN_RANGE = 1;
+  var MAX_RANGE = 30;
   var STORAGE_KEY = "tangshi300_scan_settings";
 
   var root = document.documentElement;
@@ -82,13 +89,27 @@
   var durNum = document.getElementById("scan-dur-num");
   var delayRange = document.getElementById("scan-delay-range");
   var delayNum = document.getElementById("scan-delay-num");
+  var breatheToggle = document.getElementById("bg-breathe-toggle");
+  var breatheOptions = document.getElementById("breathe-options");
+  var periodRange = document.getElementById("breathe-period-range");
+  var periodNum = document.getElementById("breathe-period-num");
+  var rangeRange = document.getElementById("breathe-range-range");
+  var rangeNum = document.getElementById("breathe-range-num");
   var resetRevealBtn = document.getElementById("reset-reveal");
   var resetSettingsBtn = document.getElementById("reset-settings");
 
-  function clampMs(val, fallback) {
+  var settings = {
+    dur: DEFAULT_DUR,
+    delay: DEFAULT_DELAY,
+    breathe: DEFAULT_BREATHE,
+    period: DEFAULT_PERIOD,
+    range: DEFAULT_RANGE,
+  };
+
+  function clampInt(val, min, max, fallback) {
     var n = Number(val);
     if (!isFinite(n)) return fallback;
-    return Math.min(MAX_MS, Math.max(MIN_MS, Math.round(n)));
+    return Math.min(max, Math.max(min, Math.round(n)));
   }
 
   function loadSettings() {
@@ -96,30 +117,69 @@
       var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
       if (saved && typeof saved === "object") {
         return {
-          dur: clampMs(saved.dur, DEFAULT_DUR),
-          delay: clampMs(saved.delay, DEFAULT_DELAY),
+          dur: clampInt(saved.dur, MIN_MS, MAX_MS, DEFAULT_DUR),
+          delay: clampInt(saved.delay, MIN_MS, MAX_MS, DEFAULT_DELAY),
+          breathe: typeof saved.breathe === "boolean" ? saved.breathe : DEFAULT_BREATHE,
+          period: clampInt(saved.period, MIN_PERIOD, MAX_PERIOD, DEFAULT_PERIOD),
+          range: clampInt(saved.range, MIN_RANGE, MAX_RANGE, DEFAULT_RANGE),
         };
       }
     } catch (err) {}
-    return { dur: DEFAULT_DUR, delay: DEFAULT_DELAY };
+    return {
+      dur: DEFAULT_DUR,
+      delay: DEFAULT_DELAY,
+      breathe: DEFAULT_BREATHE,
+      period: DEFAULT_PERIOD,
+      range: DEFAULT_RANGE,
+    };
   }
 
-  function saveSettings(dur, delay) {
+  function saveSettings() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ dur: dur, delay: delay }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     } catch (err) {}
   }
 
-  function applySettings(dur, delay, persist) {
-    dur = clampMs(dur, DEFAULT_DUR);
-    delay = clampMs(delay, DEFAULT_DELAY);
-    root.style.setProperty("--scan-dur", dur + "ms");
-    root.style.setProperty("--scan-delay", delay + "ms");
-    if (durRange) durRange.value = String(dur);
-    if (durNum) durNum.value = String(dur);
-    if (delayRange) delayRange.value = String(delay);
-    if (delayNum) delayNum.value = String(delay);
-    if (persist) saveSettings(dur, delay);
+  function applySettings(next, persist) {
+    settings.dur = clampInt(next.dur, MIN_MS, MAX_MS, DEFAULT_DUR);
+    settings.delay = clampInt(next.delay, MIN_MS, MAX_MS, DEFAULT_DELAY);
+    settings.breathe = typeof next.breathe === "boolean" ? next.breathe : DEFAULT_BREATHE;
+    settings.period = clampInt(next.period, MIN_PERIOD, MAX_PERIOD, DEFAULT_PERIOD);
+    settings.range = clampInt(next.range, MIN_RANGE, MAX_RANGE, DEFAULT_RANGE);
+
+    root.style.setProperty("--scan-dur", settings.dur + "ms");
+    root.style.setProperty("--scan-delay", settings.delay + "ms");
+    root.style.setProperty("--breathe-period", settings.period + "s");
+    root.style.setProperty("--breathe-light-dim", settings.range + "%");
+    root.style.setProperty("--breathe-light-bright", Math.min(100, settings.range * 12) + "%");
+    root.style.setProperty("--breathe-dark-dim", Math.min(100, settings.range * 5) + "%");
+    root.style.setProperty("--breathe-dark-bright", (settings.range * 1.2).toFixed(1) + "%");
+    root.classList.toggle("bg-breathe", settings.breathe);
+
+    if (durRange) durRange.value = String(settings.dur);
+    if (durNum) durNum.value = String(settings.dur);
+    if (delayRange) delayRange.value = String(settings.delay);
+    if (delayNum) delayNum.value = String(settings.delay);
+    if (periodRange) periodRange.value = String(settings.period);
+    if (periodNum) periodNum.value = String(settings.period);
+    if (rangeRange) rangeRange.value = String(settings.range);
+    if (rangeNum) rangeNum.value = String(settings.range);
+    if (breatheToggle) {
+      breatheToggle.setAttribute("aria-pressed", String(settings.breathe));
+      breatheToggle.textContent = settings.breathe ? "開啟" : "關閉";
+    }
+    if (breatheOptions) breatheOptions.hidden = !settings.breathe;
+    if (persist) saveSettings();
+  }
+
+  function updateSetting(patch) {
+    applySettings({
+      dur: "dur" in patch ? patch.dur : settings.dur,
+      delay: "delay" in patch ? patch.delay : settings.delay,
+      breathe: "breathe" in patch ? patch.breathe : settings.breathe,
+      period: "period" in patch ? patch.period : settings.period,
+      range: "range" in patch ? patch.range : settings.range,
+    }, true);
   }
 
   if (reader) {
@@ -144,25 +204,32 @@
     });
   }
 
-  var initial = loadSettings();
-  applySettings(initial.dur, initial.delay, false);
+  applySettings(loadSettings(), false);
 
   if (durRange && durNum) {
-    durRange.addEventListener("input", function () {
-      applySettings(durRange.value, delayRange ? delayRange.value : DEFAULT_DELAY, true);
-    });
-    durNum.addEventListener("change", function () {
-      applySettings(durNum.value, delayNum ? delayNum.value : DEFAULT_DELAY, true);
-    });
+    durRange.addEventListener("input", function () { updateSetting({ dur: durRange.value }); });
+    durNum.addEventListener("change", function () { updateSetting({ dur: durNum.value }); });
   }
 
   if (delayRange && delayNum) {
-    delayRange.addEventListener("input", function () {
-      applySettings(durRange ? durRange.value : DEFAULT_DUR, delayRange.value, true);
+    delayRange.addEventListener("input", function () { updateSetting({ delay: delayRange.value }); });
+    delayNum.addEventListener("change", function () { updateSetting({ delay: delayNum.value }); });
+  }
+
+  if (breatheToggle) {
+    breatheToggle.addEventListener("click", function () {
+      updateSetting({ breathe: !settings.breathe });
     });
-    delayNum.addEventListener("change", function () {
-      applySettings(durNum ? durNum.value : DEFAULT_DUR, delayNum.value, true);
-    });
+  }
+
+  if (periodRange && periodNum) {
+    periodRange.addEventListener("input", function () { updateSetting({ period: periodRange.value }); });
+    periodNum.addEventListener("change", function () { updateSetting({ period: periodNum.value }); });
+  }
+
+  if (rangeRange && rangeNum) {
+    rangeRange.addEventListener("input", function () { updateSetting({ range: rangeRange.value }); });
+    rangeNum.addEventListener("change", function () { updateSetting({ range: rangeNum.value }); });
   }
 
   if (resetRevealBtn && reader) {
@@ -176,7 +243,13 @@
 
   if (resetSettingsBtn) {
     resetSettingsBtn.addEventListener("click", function () {
-      applySettings(DEFAULT_DUR, DEFAULT_DELAY, true);
+      applySettings({
+        dur: DEFAULT_DUR,
+        delay: DEFAULT_DELAY,
+        breathe: DEFAULT_BREATHE,
+        period: DEFAULT_PERIOD,
+        range: DEFAULT_RANGE,
+      }, true);
     });
   }
 

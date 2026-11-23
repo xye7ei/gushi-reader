@@ -173,6 +173,32 @@ def build() -> None:
               </div>
               <input id="scan-delay-range" class="setting-range" type="range" min="0" max="10000" step="50" value="1250">
             </div>
+            <div class="setting-toggle-row">
+              <span>背景明暗呼吸</span>
+              <button type="button" class="setting-toggle" id="bg-breathe-toggle" aria-pressed="true">開啟</button>
+            </div>
+            <div class="breathe-options" id="breathe-options">
+              <div class="setting-field">
+                <div class="setting-head">
+                  <label for="breathe-period-range">呼吸週期</label>
+                  <span class="setting-input-wrap">
+                    <input id="breathe-period-num" class="setting-num" type="number" min="2" max="60" step="1" value="12" aria-label="呼吸週期秒數">
+                    <span>s</span>
+                  </span>
+                </div>
+                <input id="breathe-period-range" class="setting-range" type="range" min="2" max="60" step="1" value="12">
+              </div>
+              <div class="setting-field">
+                <div class="setting-head">
+                  <label for="breathe-range-range">明暗幅度</label>
+                  <span class="setting-input-wrap">
+                    <input id="breathe-range-num" class="setting-num" type="number" min="1" max="30" step="1" value="6" aria-label="明暗幅度百分比">
+                    <span>%</span>
+                  </span>
+                </div>
+                <input id="breathe-range-range" class="setting-range" type="range" min="1" max="30" step="1" value="6">
+              </div>
+            </div>
             <div class="settings-actions">
               <button type="button" class="setting-action" id="reset-reveal">重新隱藏詩句</button>
               <button type="button" class="setting-action" id="reset-settings">恢復預設</button>

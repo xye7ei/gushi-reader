@@ -10,6 +10,14 @@
       color-scheme: light dark;
 
       --bg: #faf8f4;
+      --breathe-period: 12s;
+      --breathe-light-dim: 6%;
+      --breathe-light-bright: 72%;
+      --breathe-dark-dim: 30%;
+      --breathe-dark-bright: 7.2%;
+      --bg-dim: color-mix(in srgb, var(--bg), #3a2e22 var(--breathe-light-dim));
+      --bg-bright: color-mix(in srgb, var(--bg), #fffdf7 var(--breathe-light-bright));
+      --bg-bright-edge: color-mix(in srgb, var(--bg), #fffaf0 calc(var(--breathe-light-bright) * 0.6));
       --bg-bar: #f3efe8;
       --bg-btn: #ffffff;
       --bg-hover: #eae4d9;
@@ -26,6 +34,9 @@
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #151412;
+        --bg-dim: color-mix(in srgb, var(--bg), #050403 var(--breathe-dark-dim));
+        --bg-bright: color-mix(in srgb, var(--bg), #fff4e0 var(--breathe-dark-bright));
+        --bg-bright-edge: color-mix(in srgb, var(--bg), #f5ebd8 calc(var(--breathe-dark-bright) * 0.65));
         --bg-bar: #1c1a17;
         --bg-btn: #23201c;
         --bg-hover: #2d2924;
@@ -43,16 +54,61 @@
       box-sizing: border-box;
     }
 
-    html,
-    body {
+    html {
       margin: 0;
       padding: 0;
       min-height: 100dvh;
       background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100dvh;
+      background: transparent;
       color: var(--text);
       font-family: var(--font-serif);
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+    }
+
+    @keyframes bgBreathe {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    html.bg-breathe {
+      background: var(--bg-dim);
+    }
+
+    html.bg-breathe body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: var(--bg-bright);
+      will-change: opacity;
+      animation: bgBreathe calc(var(--breathe-period, 12s) / 2) cubic-bezier(0.37, 0, 0.63, 1) calc(var(--breathe-period, 12s) / -4) infinite alternate;
+    }
+
+    html.bg-breathe.breathe-dither body::before {
+      background: radial-gradient(ellipse farthest-corner at 50% 45%, var(--bg-bright) 0%, var(--bg-bright-edge) 100%);
+    }
+
+    html.bg-breathe.breathe-dither body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
     }
 
     body {
@@ -77,6 +133,10 @@
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
+    }
+
+    .toolbar-row[hidden] {
+      display: none;
     }
 
     .controls-row {
@@ -298,6 +358,7 @@
       <button type="button" class="btn" data-mode="char" aria-pressed="false">方案三：逐字淡入</button>
       <button type="button" class="btn btn-replay" id="replay-btn">重新隱藏</button>
       <button type="button" class="btn btn-replay" id="reset-btn">重設參數</button>
+      <button type="button" class="btn" id="bg-breathe-toggle" aria-pressed="true">背景呼吸：開</button>
     </div>
     <div class="toolbar-row controls-row">
       <label class="control-item">
@@ -311,6 +372,20 @@
         <output class="control-val" id="stagger-val" for="stagger-range">420 ms</output>
       </label>
       <span class="control-total" id="total-val">單行約 0.70 s</span>
+    </div>
+    <div class="toolbar-row controls-row" id="breathe-controls">
+      <button type="button" class="btn" id="breathe-style-solid" data-breathe-style="solid" aria-pressed="true">背景：均勻純色</button>
+      <button type="button" class="btn" id="breathe-style-dither" data-breathe-style="dither" aria-pressed="false">背景：柔光＋噪點</button>
+      <label class="control-item">
+        <span>呼吸週期</span>
+        <input type="range" id="breathe-period-range" min="2" max="60" step="1" value="12">
+        <output class="control-val" id="breathe-period-val" for="breathe-period-range">12 s</output>
+      </label>
+      <label class="control-item">
+        <span>明暗幅度</span>
+        <input type="range" id="breathe-range-range" min="1" max="30" step="1" value="6">
+        <output class="control-val" id="breathe-range-val" for="breathe-range-range">6 %</output>
+      </label>
     </div>
   </div>
 
@@ -337,6 +412,18 @@
       var desc = document.getElementById("mode-desc");
       var replayBtn = document.getElementById("replay-btn");
       var resetBtn = document.getElementById("reset-btn");
+      var breatheToggle = document.getElementById("bg-breathe-toggle");
+      var breatheControls = document.getElementById("breathe-controls");
+      var breathePeriodRange = document.getElementById("breathe-period-range");
+      var breathePeriodVal = document.getElementById("breathe-period-val");
+      var breatheRangeRange = document.getElementById("breathe-range-range");
+      var breatheRangeVal = document.getElementById("breathe-range-val");
+      var breatheStyleBtns = Array.prototype.slice.call(document.querySelectorAll("[data-breathe-style]"));
+      var root = document.documentElement;
+      var breatheEnabled = true;
+      var breathePeriod = 12;
+      var breatheRange = 6;
+      var breatheStyle = "solid";
       var durLabel = document.getElementById("dur-label");
       var durRange = document.getElementById("dur-range");
       var durVal = document.getElementById("dur-val");
@@ -534,9 +621,61 @@
         var cfg = CONFIG[currentMode];
         state[currentMode].dur = cfg.durDefault;
         state[currentMode].stagger = cfg.hasStagger ? cfg.staggerDefault : 0;
+        applyBreathe(true, 12, 6, "solid");
         applyMode(currentMode);
       });
 
+      function applyBreathe(enabled, period, range, style) {
+        breatheEnabled = enabled;
+        breathePeriod = period;
+        breatheRange = range;
+        breatheStyle = style || breatheStyle;
+        root.classList.toggle("bg-breathe", breatheEnabled);
+        root.classList.toggle("breathe-dither", breatheStyle === "dither");
+        root.style.setProperty("--breathe-period", breathePeriod + "s");
+        root.style.setProperty("--breathe-light-dim", breatheRange + "%");
+        root.style.setProperty("--breathe-light-bright", Math.min(100, breatheRange * 12) + "%");
+        root.style.setProperty("--breathe-dark-dim", Math.min(100, breatheRange * 5) + "%");
+        root.style.setProperty("--breathe-dark-bright", (breatheRange * 1.2).toFixed(1) + "%");
+        if (breatheToggle) {
+          breatheToggle.setAttribute("aria-pressed", String(breatheEnabled));
+          breatheToggle.textContent = breatheEnabled ? "背景呼吸：開" : "背景呼吸：關";
+        }
+        if (breatheControls) breatheControls.hidden = !breatheEnabled;
+        if (breathePeriodRange) breathePeriodRange.value = String(breathePeriod);
+        if (breathePeriodVal) breathePeriodVal.textContent = breathePeriod + " s";
+        if (breatheRangeRange) breatheRangeRange.value = String(breatheRange);
+        if (breatheRangeVal) breatheRangeVal.textContent = breatheRange + " %";
+        breatheStyleBtns.forEach(function (btn) {
+          btn.setAttribute("aria-pressed", String(btn.getAttribute("data-breathe-style") === breatheStyle));
+        });
+      }
+
+      if (breatheToggle) {
+        breatheToggle.addEventListener("click", function () {
+          applyBreathe(!breatheEnabled, breathePeriod, breatheRange, breatheStyle);
+        });
+      }
+
+      breatheStyleBtns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          applyBreathe(breatheEnabled, breathePeriod, breatheRange, btn.getAttribute("data-breathe-style"));
+        });
+      });
+
+      if (breathePeriodRange) {
+        breathePeriodRange.addEventListener("input", function () {
+          applyBreathe(breatheEnabled, Number(breathePeriodRange.value), breatheRange, breatheStyle);
+        });
+      }
+
+      if (breatheRangeRange) {
+        breatheRangeRange.addEventListener("input", function () {
+          applyBreathe(breatheEnabled, breathePeriod, Number(breatheRangeRange.value), breatheStyle);
+        });
+      }
+
+      applyBreathe(true, 12, 6, "solid");
       applyMode("line");
     })();
   </script>

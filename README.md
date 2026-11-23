@@ -116,7 +116,7 @@
 
 ### 側欄底部設置面板
 - 以原生 `<details class="settings-panel">` 固定於側欄底部，無需 JS 控制開合。
-- 透過 CSS Custom Properties `--scan-dur`（單句掃描，預設 `2500ms`，範圍 `0–10000ms`）與 `--scan-delay`（上下句延遲，預設 `1250ms`，範圍 `0–10000ms`）即時生效，滑桿與數字輸入框雙向同步，並以 `try/catch` 包裹 `localStorage` 持久化偏好。
+- 透過 CSS Custom Properties `--scan-dur`（單句掃描，預設 `2500ms`，範圍 `0–10000ms`）與 `--scan-delay`（上下句延遲，預設 `1250ms`，範圍 `0–10000ms`）即時生效，滑桿與數字輸入框雙向同步；另附「**背景明暗呼吸**」開關及「**呼吸週期**」（`2–60s`，預設 `12s`）與「**明暗幅度**」（`1–30%`，預設 `6%`）調整項，採獨立 GPU 合成層 `body::before` 均勻純色僅動畫 `opacity`（配合 2-stop `alternate` 正弦曲線與微暖色偏，避免主執行緒重繪與徑向漸層 8-bit 環帶，在低電量模式下亦保持流暢），所有設定皆以 `try/catch` 包裹 `localStorage` 持久化。
 
 ---
 
