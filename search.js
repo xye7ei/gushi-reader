@@ -188,19 +188,15 @@
     reader.addEventListener("click", function (e) {
       if (window.getSelection && window.getSelection().toString()) return;
       var target = e.target;
-      if (!target || !target.closest) return;
-
-      var verse = target.closest(".verse");
-      if (verse && !verse.classList.contains("is-revealed")) {
-        verse.classList.add("is-revealed");
-        return;
+      var poem = target && target.closest ? target.closest(".poem") : null;
+      if (!poem && document.elementFromPoint) {
+        var rect = reader.getBoundingClientRect();
+        var centerEl = document.elementFromPoint(rect.left + rect.width / 2, e.clientY);
+        poem = centerEl && centerEl.closest ? centerEl.closest(".poem") : null;
       }
-
-      var poem = target.closest(".poem");
-      if (poem) {
-        var next = poem.querySelector(".verse:not(.is-revealed)");
-        if (next) next.classList.add("is-revealed");
-      }
+      if (!poem) return;
+      var next = poem.querySelector(".verse:not(.is-revealed)");
+      if (next) next.classList.add("is-revealed");
     });
   }
 

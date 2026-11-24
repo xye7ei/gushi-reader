@@ -578,13 +578,9 @@
         poem.classList.add("mode-" + mode);
       }
 
-      poem.addEventListener("click", function (e) {
+      var stage = document.querySelector(".stage");
+      (stage || poem).addEventListener("click", function () {
         if (window.getSelection && window.getSelection().toString()) return;
-        var verse = e.target && e.target.closest ? e.target.closest(".verse") : null;
-        if (verse && !verse.classList.contains("is-revealed")) {
-          verse.classList.add("is-revealed");
-          return;
-        }
         var next = poem.querySelector(".verse:not(.is-revealed)");
         if (next) next.classList.add("is-revealed");
       });
